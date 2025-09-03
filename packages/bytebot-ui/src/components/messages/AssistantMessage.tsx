@@ -5,6 +5,11 @@ import { MessageContent } from "./content/MessageContent";
 import { isToolResultContentBlock, isImageContentBlock } from "@bytebot/shared";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { MemoryBanner } from "../memory/MemoryBanner";
+import { MessageContentType } from "@bytebot/shared";
+import { MemorySaveButton } from "../memory/MemorySaveButton";
+import { isTextContentBlock } from "@bytebot/shared";
+import { RagBanner } from "../rag/RagBanner";
 
 interface AssistantMessageProps {
   group: GroupedMessages;
@@ -40,6 +45,37 @@ export function AssistantMessage({
             </p>
           </div>
           <div className="bg-bytebot-bronze-light-2 mt-2 space-y-0.5 rounded-2xl p-1">
+            {/* RAG + Memory banners (if annotated) */}
+            {(() => {
+              const first = group.messages[0];
+              const rag = first?.content?.find(
+                (b: any) => b?.type === MessageContentType.RagContext,
+              ) as any;
+              return rag?.items?.length ? (
+                <RagBanner items={rag.items} />
+              ) : null;
+            })()}
+            {(() => {
+              const first = group.messages[0];
+              const mem = first?.content?.find(
+                (b: any) => b?.type === MessageContentType.MemoryContext,
+              ) as any;
+              return mem?.items?.length ? (
+                <MemoryBanner items={mem.items} />
+              ) : null;
+            })()}
+            <div className="flex justify-end">
+              <MemorySaveButton
+                taskId={group.messages[0].taskId}
+                getSnippet={() =>
+                  group.messages
+                    .flatMap((m) => m.content)
+                    .filter((b: any) => isTextContentBlock(b))
+                    .map((b: any) => (b as any).text as string)
+                    .join("\n")
+                }
+              />
+            </div>
             {group.messages.map((message) => (
               <div
                 key={message.id}
@@ -85,7 +121,36 @@ export function AssistantMessage({
           </div>
         </div>
       ) : (
-        <div>
+        <div className="w-full">
+          {/* RAG + Memory banners (if annotated) */}
+          {(() => {
+            const first = group.messages[0];
+            const rag = first?.content?.find(
+              (b: any) => b?.type === MessageContentType.RagContext,
+            ) as any;
+            return rag?.items?.length ? <RagBanner items={rag.items} /> : null;
+          })()}
+          {(() => {
+            const first = group.messages[0];
+            const mem = first?.content?.find(
+              (b: any) => b?.type === MessageContentType.MemoryContext,
+            ) as any;
+            return mem?.items?.length ? (
+              <MemoryBanner items={mem.items} />
+            ) : null;
+          })()}
+          <div className="flex justify-end">
+            <MemorySaveButton
+              taskId={group.messages[0].taskId}
+              getSnippet={() =>
+                group.messages
+                  .flatMap((m) => m.content)
+                  .filter((b: any) => isTextContentBlock(b))
+                  .map((b: any) => (b as any).text as string)
+                  .join("\n")
+              }
+            />
+          </div>
           {group.messages.map((message) => (
             <div
               key={message.id}

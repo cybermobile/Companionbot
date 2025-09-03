@@ -266,6 +266,44 @@ helm install bytebot ./helm \
 
 [Enterprise deployment guide →](https://docs.bytebot.ai/deployment/helm)
 
+### Optional: Memory Layer (Mem0)
+
+This repository includes optional hooks to integrate a memory layer that stores per-task and per-user context and transparently surfaces it in the UI.
+
+- Backend (agent service)
+  - Set environment variables:
+    - `ENABLE_MEM0=true`
+    - `MEM0_API_KEY=...`
+    - `MEM0_BASE_URL` (optional)
+  - Endpoints (behind global `api` prefix):
+    - `GET /api/memory?taskId=...&scope=task|user|project`
+    - `POST /api/memory` `{ text, scope, taskId, userId, tags }`
+    - `PUT /api/memory/:id`
+    - `POST /api/memory/:id/promote`
+    - `DELETE /api/memory/:id`
+  - Implementation note: `Mem0Service` contains TODOs to connect to your Mem0 SDK/API.
+
+- UI
+  - Assistant messages show a “Using N memories” banner when relevant context is applied.
+  - A “Memories” drawer is available on the task chat page to review and manage items.
+
+### Optional: Retrieval‑Augmented Generation (RAG) with Postgres
+
+- Backend (agent service)
+  - Set environment variables:
+    - `ENABLE_RAG=true`
+    - `OPENAI_API_KEY=...` (for embeddings)
+    - `RAG_EMBED_MODEL=text-embedding-3-small` (default)
+    - `RAG_TOPK=8` (optional)
+  - Database: Postgres with `pgvector` extension. The service attempts to run `CREATE EXTENSION IF NOT EXISTS vector` and will create two tables when first used:
+    - `rag_document(id text, title text, source_type text, url text, metadata jsonb, created_at timestamptz)`
+    - `rag_chunk(id text, document_id text, chunk_index int, text text, embedding vector(1536), metadata jsonb, created_at timestamptz)`
+  - The agent retrieves top‑K relevant chunks and annotates assistant turns with a RAG Context block.
+
+- UI
+  - Assistant messages show a “Using N sources” banner when RAG is applied.
+
+
 ## Community & Support
 
 - **Discord**: [Join our community](https://discord.com/invite/d9ewZkWPTP) for help and discussions

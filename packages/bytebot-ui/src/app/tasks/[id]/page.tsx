@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { VirtualDesktopStatus } from "@/components/VirtualDesktopStatusHeader";
+import { MemoryDrawer } from "@/components/memory/MemoryDrawer";
 
 export default function TaskPage() {
   const params = useParams();
@@ -190,6 +191,11 @@ export default function TaskPage() {
 
           {/* Chat Area */}
           <div className="col-span-3 flex h-full min-h-0 flex-col">
+            {/* Chat toolbar */}
+            <div className="mb-2 flex items-center justify-between px-4">
+              <div className="text-sm font-medium text-bytebot-bronze-light-12">Chat</div>
+              <MemoryToolbar taskId={taskId} />
+            </div>
             {/* Messages scrollable area */}
             <div
               ref={chatContainerRef}
@@ -216,5 +222,21 @@ export default function TaskPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// Local toolbar with a button to open memory drawer
+function MemoryToolbar({ taskId }: { taskId: string }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded border border-bytebot-bronze-light-7 px-2 py-1 text-xs hover:bg-bytebot-bronze-light-a1"
+      >
+        Memories
+      </button>
+      <MemoryDrawer taskId={taskId} open={open} onOpenChange={setOpen} />
+    </>
   );
 }

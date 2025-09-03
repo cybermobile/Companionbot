@@ -13,6 +13,7 @@ import {
   isUserActionContentBlock,
 } from '@bytebot/shared';
 import { TasksGateway } from '../tasks/tasks.gateway';
+import { Mem0Service } from '../mem0/mem0.service';
 
 // Extended message type for processing
 export interface ProcessedMessage extends Message {
@@ -31,6 +32,7 @@ export class MessagesService {
     private prisma: PrismaService,
     @Inject(forwardRef(() => TasksGateway))
     private readonly tasksGateway: TasksGateway,
+    private readonly mem0: Mem0Service,
   ) {}
 
   async create(data: {
@@ -47,6 +49,36 @@ export class MessagesService {
     });
 
     this.tasksGateway.emitNewMessage(data.taskId, message);
+
+    // Fire-and-forget attempt to store salient text as task-scoped memory
+    void (async () => {
+      try {
+        if (!this.mem0.isEnabled()) return;
+        // Extract short text spans only; avoid tool blocks
+        const texts: string[] = [];
+        for (const block of data.content) {
+          if (block.type === 'text' && typeof (block as any).text === 'string') {
+            const t = (block as any).text as string;
+            const trimmed = t.trim();
+            if (trimmed && trimmed.length <= 500) {
+              texts.push(trimmed);
+            }
+          }
+        }
+        if (texts.length === 0) return;
+        // Join with delimiter to create a single memory snippet
+        const snippet = texts.join('\n').slice(0, 500);
+        await this.mem0.addMemory({
+          text: snippet,
+          scope: 'task',
+          taskId: data.taskId,
+          tags: [data.role.toLowerCase()],
+          metadata: { source: 'message.create' },
+        });
+      } catch (e) {
+        // Swallow errors to avoid impacting primary flow
+      }
+    })();
 
     return message;
   }

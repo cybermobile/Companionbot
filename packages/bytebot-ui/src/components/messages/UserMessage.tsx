@@ -7,6 +7,7 @@ import {
   isToolResultContentBlock,
   isImageContentBlock,
 } from "@bytebot/shared";
+import { MemorySaveButton } from "../memory/MemorySaveButton";
 
 interface UserMessageProps {
   group: GroupedMessages;
@@ -80,6 +81,18 @@ export function UserMessage({ group, messageIdToIndex }: UserMessageProps) {
   return (
     <div className="bg-bytebot-bronze-light-3 flex items-start justify-end gap-2 px-4 py-3 border-x border-bytebot-bronze-light-7">
       <div>
+        <div className="flex justify-end pb-2">
+          <MemorySaveButton
+            taskId={group.messages[0].taskId}
+            getSnippet={() =>
+              group.messages
+                .flatMap((m) => m.content)
+                .filter((b: any) => isTextContentBlock(b))
+                .map((b: any) => (b as any).text as string)
+                .join("\n")
+            }
+          />
+        </div>
         {group.messages.map((message) => (
           <div
             key={message.id}

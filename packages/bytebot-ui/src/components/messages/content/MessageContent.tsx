@@ -6,6 +6,7 @@ import {
   isComputerToolUseContentBlock,
   isToolResultContentBlock,
 } from "@bytebot/shared";
+import { MessageContentType } from "@bytebot/shared";
 import { TextContent } from "./TextContent";
 import { ImageContent } from "./ImageContent";
 import { ComputerToolContent } from "./ComputerToolContent";
@@ -22,6 +23,13 @@ export function MessageContent({
 }: MessageContentProps) {
   // Filter content blocks and check if any visible content remains
   const visibleBlocks = content.filter((block) => {
+    // Hide memory/rag context from normal rendering (handled by banners)
+    if ((block as any)?.type === MessageContentType.MemoryContext) {
+      return false;
+    }
+    if ((block as any)?.type === MessageContentType.RagContext) {
+      return false;
+    }
     // Filter logic from the original code
     if (
       isToolResultContentBlock(block) &&

@@ -10,6 +10,8 @@ export enum MessageContentType {
   Thinking = "thinking",
   RedactedThinking = "redacted_thinking",
   UserAction = "user_action",
+  MemoryContext = "memory_context",
+  RagContext = "rag_context",
 }
 
 // Base type with only the discriminator
@@ -244,6 +246,34 @@ export type ToolResultContentBlock = {
   is_error?: boolean;
 } & MessageContentBlockBase;
 
+// Memory context used to transparently surface which memories were retrieved/used
+export type MemoryContextItem = {
+  id: string;
+  scope: "task" | "user" | "project";
+  snippet: string;
+  score?: number;
+  updatedAt?: string; // ISO string
+};
+
+export type MemoryContextContentBlock = {
+  type: MessageContentType.MemoryContext;
+  items: MemoryContextItem[];
+} & MessageContentBlockBase;
+
+// RAG context: sources retrieved from a knowledge base
+export type RagContextItem = {
+  id: string;
+  title?: string;
+  snippet: string;
+  url?: string;
+  score?: number;
+};
+
+export type RagContextContentBlock = {
+  type: MessageContentType.RagContext;
+  items: RagContextItem[];
+} & MessageContentBlockBase;
+
 // Union type of all possible content blocks
 export type MessageContentBlock =
   | TextContentBlock
@@ -254,4 +284,6 @@ export type MessageContentBlock =
   | RedactedThinkingContentBlock
   | UserActionContentBlock
   | ComputerToolUseContentBlock
-  | ToolResultContentBlock;
+  | ToolResultContentBlock
+  | MemoryContextContentBlock
+  | RagContextContentBlock;

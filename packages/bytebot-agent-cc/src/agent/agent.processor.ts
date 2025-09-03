@@ -38,6 +38,8 @@ import {
 } from './agent.constants';
 import { query } from '@anthropic-ai/claude-code';
 import Anthropic from '@anthropic-ai/sdk';
+import { Mem0Service } from '../mem0/mem0.service';
+import { RagService } from '../rag/rag.service';
 
 @Injectable()
 export class AgentProcessor {
@@ -53,6 +55,8 @@ export class AgentProcessor {
     private readonly tasksService: TasksService,
     private readonly messagesService: MessagesService,
     private readonly inputCaptureService: InputCaptureService,
+    private readonly mem0: Mem0Service,
+    private readonly rag: RagService,
   ) {
     this.logger.log('AgentProcessor initialized');
   }
@@ -183,6 +187,32 @@ export class AgentProcessor {
       // Refresh abort controller for this iteration to avoid accumulating
       // "abort" listeners on a single AbortSignal across iterations.
       this.abortController = new AbortController();
+      // Attempt memory retrieval to augment context (no-op if disabled)
+      let retrievedMemories: { id: string; scope: 'task' | 'user' | 'project'; snippet: string; score?: number; updatedAt?: string }[] = [];
+      try {
+        if (this.mem0.isEnabled()) {
+          retrievedMemories = await this.mem0.retrieve({
+            query: task.description,
+            taskId: taskId,
+            topKTask: 8,
+            topKUser: 3,
+          });
+        }
+      } catch (e) {
+        // safe ignore
+      }
+
+      let annotatedFirstAssistant = false;
+      // Attempt RAG retrieval
+      let ragSources: { id: string; title?: string; snippet: string; url?: string; score?: number }[] = [];
+      try {
+        if (this.rag.isEnabled()) {
+          ragSources = await this.rag.retrieve({ query: task.description, topK: 6 });
+        }
+      } catch (e) {
+        // ignore
+      }
+
       for await (const message of query({
         prompt: task.description,
         options: {
@@ -220,6 +250,24 @@ export class AgentProcessor {
             messageContentBlocks = this.formatAnthropicResponse(
               message.message.content,
             );
+            // Prepend memory context once per iteration if we have any
+            if (!annotatedFirstAssistant && (retrievedMemories.length > 0 || ragSources.length > 0)) {
+              annotatedFirstAssistant = true;
+              const prelude: any[] = [];
+              if (ragSources.length > 0) {
+                prelude.push({
+                  type: MessageContentType.RagContext,
+                  items: ragSources,
+                } as any);
+              }
+              if (retrievedMemories.length > 0) {
+                prelude.push({
+                  type: MessageContentType.MemoryContext,
+                  items: retrievedMemories,
+                } as any);
+              }
+              messageContentBlocks = [...prelude, ...messageContentBlocks];
+            }
             break;
           }
           case 'system':
